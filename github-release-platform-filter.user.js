@@ -2,7 +2,7 @@
 // @name         GitHub发布平台筛选器
 // @name:en      GitHub Release Platform Filter
 // @namespace    https://github.com/eecopilot
-// @version      0.3.1
+// @version      0.3.2
 // @description  筛选GitHub发布资源的平台，优化发布说明显示
 // @description:en  Filter GitHub release assets by platform and optimize release notes display
 // @author       EEP
@@ -16,15 +16,6 @@
 
 (function () {
   'use strict';
-
-  // 添加调试信息
-  const debug = {
-    log: function (message) {
-      console.log('[GitHub Release Filter]', message);
-    },
-  };
-
-  debug.log('脚本开始加载');
 
   // 样式定义
   const styles = `
@@ -67,25 +58,47 @@
         .platform-filter {
             position: fixed;
             top: 60px;
-            right: 16px;
+            right: -1px;
             z-index: 1000;
             background: white;
-            border-radius: 6px;
+            border-radius: 6px 0 0 6px;
             box-shadow: 0 1px 3px rgba(0,0,0,0.12);
+            transition: all 0.2s ease;
+            overflow: visible;
+        }
+        .platform-filter:hover {
+            right: 0;
         }
         .platform-filter-button {
-            padding: 8px 12px;
+            padding: 8px;
             border: 1px solid #d1d5da;
-            border-radius: 6px;
+            border-right: 0;
+            border-radius: 6px 0 0 6px;
             background-color: #f6f8fa;
             color: #24292e;
             cursor: pointer;
             display: flex;
             align-items: center;
-            gap: 8px;
             font-size: 14px;
             font-weight: 500;
             white-space: nowrap;
+            transition: all 0.2s ease;
+            min-width: 36px;
+            margin-right: -1px;
+        }
+        .platform-filter-button span {
+            width: 0;
+            overflow: hidden;
+            opacity: 0;
+            transition: all 0.2s ease;
+        }
+        .platform-filter:hover .platform-filter-button {
+            padding: 8px 12px;
+        }
+        .platform-filter:hover .platform-filter-button span {
+            width: auto;
+            opacity: 1;
+            margin-left: 4px;
         }
         .platform-filter-button:hover {
             background-color: #f3f4f6;
@@ -94,6 +107,7 @@
         .platform-filter-button svg {
             width: 16px;
             height: 16px;
+            flex-shrink: 0;
         }
         .platform-dropdown {
             position: absolute;
@@ -105,7 +119,8 @@
             border-radius: 6px;
             box-shadow: 0 8px 24px rgba(149,157,165,0.2);
             display: none;
-            min-width: 200px;
+            min-width: 120px;
+            z-index: 100;
         }
         .platform-dropdown.show {
             display: block;
@@ -116,6 +131,7 @@
             display: flex;
             align-items: center;
             gap: 8px;
+            font-size: 14px;
         }
         .platform-option:hover {
             background-color: #f6f8fa;
@@ -123,6 +139,12 @@
         .platform-option.selected {
             background-color: #f1f8ff;
             color: #0366d6;
+        }
+        .platform-option:first-child {
+            border-radius: 6px 6px 0 0;
+        }
+        .platform-option:last-child {
+            border-radius: 0 0 6px 6px;
         }
         .platform-option svg {
             width: 16px;
@@ -143,9 +165,7 @@
 
   // 主要功能实现
   function initFeaturesPanels() {
-    debug.log('开始初始化面板');
     const panels = document.querySelectorAll('.markdown-body.my-3');
-    debug.log(`找到 ${panels.length} 个面板`);
 
     panels.forEach((panel) => {
       // 检查内容高度是否需要添加展开/收起功能
@@ -188,7 +208,6 @@
               node.querySelector?.('.markdown-body'))
         );
         if (hasMarkdownBody) {
-          debug.log('检测到新的markdown内容，重新初始化面板');
           initFeaturesPanels();
           break;
         }
@@ -210,81 +229,57 @@
   // 判断资源是否属于指定平台
   function isAssetForPlatform(assetText, platform) {
     const text = assetText.toLowerCase();
-    // 检查是否是md5文件或源代码文件
-    const isMd5File = text.includes('md5') || text.endsWith('.md5');
-    const isSourceCode =
-      text.includes('source') ||
-      text.includes('src') ||
-      text.endsWith('.zip') ||
-      text.endsWith('.tar.gz');
 
-    // 如果是md5文件，根据文件名中的平台信息判断
-    if (isMd5File) {
-      switch (platform) {
-        case 'windows':
-          return text.includes('win') || text.includes('windows');
-        case 'macos':
-          return (
-            text.includes('mac') ||
-            text.includes('darwin') ||
-            text.includes('osx')
-          );
-        case 'linux':
-          return text.includes('linux') || text.includes('musl');
-        case 'android':
-          return text.includes('android');
-        default:
-          return false;
-      }
-    }
+    // 检查是否是特定平台的文件
+    const isWindowsFile =
+      text.includes('windows') ||
+      text.includes('.exe') ||
+      text.includes('.msi') ||
+      text.includes('win') ||
+      text.includes('win32') ||
+      text.includes('win64');
 
-    // 如果是源代码文件，对所有平台都显示
-    if (isSourceCode) {
-      return true;
-    }
+    const isMacFile =
+      text.includes('macos') ||
+      text.includes('darwin') ||
+      text.includes('.dmg') ||
+      text.includes('mac') ||
+      text.includes('osx') ||
+      text.includes('apple') ||
+      text.includes('x64.pkg') ||
+      text.includes('arm64.pkg');
 
-    // 其他文件按照原有逻辑判断
+    const isLinuxFile =
+      text.includes('linux') ||
+      text.includes('.deb') ||
+      text.includes('.rpm') ||
+      text.includes('.appimage') ||
+      text.includes('x86_64') ||
+      text.includes('amd64') ||
+      text.includes('arm64');
+
+    const isAndroidFile =
+      text.includes('android') ||
+      text.includes('.apk') ||
+      text.includes('.aab') ||
+      text.includes('arm') ||
+      text.includes('aarch64');
+
+    // 如果文件不属于任何特定平台，则认为它是通用文件
+    const isPlatformSpecific =
+      isWindowsFile || isMacFile || isLinuxFile || isAndroidFile;
+
     switch (platform) {
       case 'windows':
-        return (
-          text.includes('windows') ||
-          text.includes('.exe') ||
-          text.includes('.msi') ||
-          text.includes('win') ||
-          text.includes('win32') ||
-          text.includes('win64')
-        );
+        return isWindowsFile;
       case 'macos':
-        return (
-          text.includes('macos') ||
-          text.includes('darwin') ||
-          text.includes('.dmg') ||
-          text.includes('mac') ||
-          text.includes('osx') ||
-          text.includes('apple') ||
-          text.includes('x64.pkg') ||
-          text.includes('arm64.pkg')
-        );
+        return isMacFile;
       case 'linux':
-        return (
-          text.includes('linux') ||
-          text.includes('.deb') ||
-          text.includes('.rpm') ||
-          text.includes('.appimage') ||
-          text.includes('x86_64') ||
-          text.includes('amd64') ||
-          text.includes('arm64')
-        );
+        return isLinuxFile;
       case 'android':
-        return (
-          text.includes('android') ||
-          text.includes('.apk') ||
-          text.includes('.aab') ||
-          text.includes('arm') ||
-          text.includes('aarch64')
-        );
+        return isAndroidFile;
       default:
-        return false;
+        return !isPlatformSpecific; // 如果文件不属于任何特定平台，则返回true
     }
   }
 
@@ -320,23 +315,18 @@
       );
       asset.classList.toggle('hidden-asset', !shouldShow);
     });
-
-    debug.log(`筛选完成，当前选中平台: ${selectedPlatforms.join(', ')}`);
   }
 
   // 初始化资源列表筛选
   function initAssetsFilter() {
-    debug.log('开始初始化资源列表筛选');
     const assetsContainer = document.querySelector('.Box--condensed');
     if (!assetsContainer) {
-      debug.log('未找到资源容器，等待100ms后重试');
       setTimeout(initAssetsFilter, 100);
       return;
     }
 
     // 检查是否已经存在筛选器
     if (document.querySelector('.platform-filter')) {
-      debug.log('筛选器已存在，重新应用筛选规则');
       filterAssets();
       return;
     }
@@ -346,12 +336,9 @@
       '.Box-row.d-flex.flex-column.flex-md-row'
     );
     if (assetsList.length === 0) {
-      debug.log('未找到资源列表，等待100ms后重试');
       setTimeout(initAssetsFilter, 100);
       return;
     }
-
-    debug.log(`找到 ${assetsList.length} 个资源项`);
 
     // 创建一个 MutationObserver 来监听资源列表的变化
     const assetsObserver = new MutationObserver((mutations) => {
@@ -361,7 +348,6 @@
             (node) => node.nodeType === 1 && node.classList?.contains('Box-row')
           );
           if (hasAssets) {
-            debug.log('检测到新的资源列表，重新应用筛选');
             filterAssets();
           }
         }
@@ -448,7 +434,6 @@
 
   // 添加样式到页面
   function addStyles() {
-    debug.log('添加样式到页面');
     if (!document.querySelector('style[data-github-release-filter]')) {
       const styleElement = document.createElement('style');
       styleElement.setAttribute('data-github-release-filter', 'true');
@@ -464,12 +449,9 @@
 
   // 等待页面加载完成后再初始化
   function initializeFeatures() {
-    debug.log('检查页面类型');
     if (!isReleasesPage()) {
-      debug.log('当前不是releases页面，跳过初始化');
       return;
     }
-    debug.log('开始初始化所有功能');
     // 确保样式已添加
     if (!document.querySelector('style[data-github-release-filter]')) {
       addStyles();
@@ -483,9 +465,7 @@
 
   // 检查并初始化功能
   function checkAndInitialize() {
-    debug.log('检查页面状态并初始化功能');
     if (!isReleasesPage()) {
-      debug.log('当前不是releases页面，跳过初始化');
       return;
     }
     // 确保样式已添加
@@ -498,7 +478,6 @@
       // 先初始化发布说明功能
       const markdownContent = document.querySelector('.markdown-body.my-3');
       if (markdownContent) {
-        debug.log('找到发布说明内容，开始初始化');
         addStyles();
         initFeaturesPanels();
         startObserver();
@@ -507,7 +486,6 @@
       // 检查资源列表是否存在
       const releaseContent = document.querySelector('.Box--condensed');
       if (releaseContent) {
-        debug.log('找到资源列表，开始初始化');
         // 确保所有动态内容都已加载
         setTimeout(() => {
           initAssetsFilter();
@@ -543,11 +521,9 @@
           });
         }, 500);
       } else {
-        debug.log('未找到资源列表，等待100ms后重试');
         setTimeout(checkAndInitialize, 100);
       }
     } else {
-      debug.log('页面未完全加载，等待加载完成');
       window.addEventListener('load', checkAndInitialize);
     }
   }
@@ -557,18 +533,15 @@
 
   // 监听Turbo Drive页面切换事件
   document.addEventListener('turbo:load', () => {
-    debug.log('检测到页面切换，重新检查并初始化功能');
     checkAndInitialize();
   });
 
   // 监听导航事件
   window.addEventListener('popstate', () => {
-    debug.log('检测到导航事件，重新检查并初始化功能');
     checkAndInitialize();
   });
 
   function startObserver() {
-    debug.log('开始观察页面变化');
     observer.observe(document.body, {
       childList: true,
       subtree: true,
