@@ -226,63 +226,6 @@
     return 'unknown';
   }
 
-  // 判断资源是否属于指定平台
-  function isAssetForPlatform(assetText, platform) {
-    const text = assetText.toLowerCase();
-
-    // 检查是否是特定平台的文件
-    const isWindowsFile =
-      text.includes('windows') ||
-      text.includes('.exe') ||
-      text.includes('.msi') ||
-      text.includes('win') ||
-      text.includes('win32') ||
-      text.includes('win64');
-
-    const isMacFile =
-      text.includes('macos') ||
-      text.includes('darwin') ||
-      text.includes('.dmg') ||
-      text.includes('mac') ||
-      text.includes('osx') ||
-      text.includes('apple') ||
-      text.includes('x64.pkg') ||
-      text.includes('arm64.pkg');
-
-    const isLinuxFile =
-      text.includes('linux') ||
-      text.includes('.deb') ||
-      text.includes('.rpm') ||
-      text.includes('.appimage') ||
-      text.includes('x86_64') ||
-      text.includes('amd64') ||
-      text.includes('arm64');
-
-    const isAndroidFile =
-      text.includes('android') ||
-      text.includes('.apk') ||
-      text.includes('.aab') ||
-      text.includes('arm') ||
-      text.includes('aarch64');
-
-    // 如果文件不属于任何特定平台，则认为它是通用文件
-    const isPlatformSpecific =
-      isWindowsFile || isMacFile || isLinuxFile || isAndroidFile;
-
-    switch (platform) {
-      case 'windows':
-        return isWindowsFile;
-      case 'macos':
-        return isMacFile;
-      case 'linux':
-        return isLinuxFile;
-      case 'android':
-        return isAndroidFile;
-      default:
-        return !isPlatformSpecific; // 如果文件不属于任何特定平台，则返回true
-    }
-  }
-
   // 获取当前系统平台
   const currentPlatform = getCurrentPlatform();
   // 获取保存的平台选择，如果没有保存过，则只选中当前平台
@@ -309,10 +252,65 @@
     }
 
     assetsList.forEach((asset) => {
-      const assetText = asset.textContent;
-      const shouldShow = selectedPlatforms.some((platform) =>
-        isAssetForPlatform(assetText, platform)
-      );
+      const assetText = asset.textContent.toLowerCase();
+      // 检查是否是特定平台的文件
+      const isWindowsFile =
+        assetText.includes('windows') ||
+        assetText.includes('.exe') ||
+        assetText.includes('.msi') ||
+        assetText.includes('win') ||
+        assetText.includes('win32') ||
+        assetText.includes('win64');
+
+      const isMacFile =
+        assetText.includes('macos') ||
+        assetText.includes('darwin') ||
+        assetText.includes('.dmg') ||
+        assetText.includes('mac') ||
+        assetText.includes('osx') ||
+        assetText.includes('apple') ||
+        assetText.includes('x64.pkg') ||
+        assetText.includes('arm64.pkg');
+
+      const isLinuxFile =
+        assetText.includes('linux') ||
+        assetText.includes('.deb') ||
+        assetText.includes('.rpm') ||
+        assetText.includes('.appimage') ||
+        assetText.includes('x86_64') ||
+        assetText.includes('amd64') ||
+        assetText.includes('arm64');
+
+      const isAndroidFile =
+        assetText.includes('android') ||
+        assetText.includes('.apk') ||
+        assetText.includes('.aab') ||
+        assetText.includes('arm') ||
+        assetText.includes('aarch64');
+
+      // 如果文件不属于任何特定平台，则认为它是通用文件
+      const isPlatformSpecific =
+        isWindowsFile || isMacFile || isLinuxFile || isAndroidFile;
+
+      // 如果文件匹配任何选中的平台，或者是通用文件，则显示
+      const matchesSelectedPlatform = selectedPlatforms.some((platform) => {
+        switch (platform) {
+          case 'windows':
+            return isWindowsFile;
+          case 'macos':
+            return isMacFile;
+          case 'linux':
+            return isLinuxFile;
+          case 'android':
+            return isAndroidFile;
+          default:
+            return false;
+        }
+      });
+
+      // 显示条件：文件匹配任何选中的平台，或者是通用文件
+      const shouldShow = matchesSelectedPlatform || !isPlatformSpecific;
+
       asset.classList.toggle('hidden-asset', !shouldShow);
     });
   }
