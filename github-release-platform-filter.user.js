@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         GitHub发布平台筛选器
 // @name:en      GitHub Release Platform Filter
-// @namespace    http://tampermonkey.net/
+// @namespace    https://github.com/eecopilot
 // @version      0.3.1
 // @description  筛选GitHub发布资源的平台，优化发布说明显示
 // @description:en  Filter GitHub release assets by platform and optimize release notes display
@@ -10,6 +10,8 @@
 // @grant        GM_setValue
 // @grant        GM_getValue
 // @license      MIT
+// @homepage     https://github.com/eecopilot/github-release-platform-filter
+// @supportURL   https://github.com/eecopilot/github-release-platform-filter/issues
 // ==/UserScript==
 
 (function () {
