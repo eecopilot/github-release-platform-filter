@@ -2,7 +2,7 @@
 // @name         GitHub发布平台筛选器
 // @name:en      GitHub Release Platform Filter
 // @namespace    https://github.com/eecopilot
-// @version      0.3.2
+// @version      0.3.3
 // @description  筛选GitHub发布资源的平台，优化发布说明显示
 // @description:en  Filter GitHub release assets by platform and optimize release notes display
 // @author       EEP
@@ -291,62 +291,78 @@
     containerAssets.forEach((asset) => {
       const assetText = asset.textContent.toLowerCase();
       // 检查是否是特定平台的文件
-      const isWindowsFile =
-        assetText.includes('windows') ||
-        assetText.includes('.exe') ||
-        assetText.includes('.msi') ||
-        assetText.includes('win') ||
-        assetText.includes('win32') ||
-        assetText.includes('win64');
+      const platformMatches = {
+        windows: [
+          '.exe',
+          '.msi',
+          'windows',
+          'win32',
+          'win64',
+          '-win.',
+          '.win.',
+          'windows',
+        ],
 
-      const isMacFile =
-        assetText.includes('macos') ||
-        assetText.includes('darwin') ||
-        assetText.includes('.dmg') ||
-        assetText.includes('mac') ||
-        assetText.includes('osx') ||
-        assetText.includes('apple') ||
-        assetText.includes('x64.pkg') ||
-        assetText.includes('arm64.pkg');
+        macos: [
+          '.dmg',
+          '.pkg',
+          'darwin',
+          'macos',
+          'osx',
+          '-mac.',
+          '.mac.',
+          'mac-universal',
+          'mac-os',
+        ],
 
-      const isLinuxFile =
-        assetText.includes('linux') ||
-        assetText.includes('.deb') ||
-        assetText.includes('.rpm') ||
-        assetText.includes('.appimage') ||
-        assetText.includes('x86_64') ||
-        assetText.includes('amd64') ||
-        assetText.includes('arm64');
+        linux: [
+          '.deb',
+          '.rpm',
+          '.appimage',
+          'linux',
+          '-linux.',
+          '.linux.',
+          'ubuntu',
+          'debian',
+          'fedora',
+          'freebsd',
+        ],
 
-      const isAndroidFile =
-        assetText.includes('android') ||
-        assetText.includes('.apk') ||
-        assetText.includes('.aab') ||
-        assetText.includes('arm') ||
-        assetText.includes('aarch64');
+        android: ['.apk', '.aab', 'android', '-android.', '.android.'],
+      };
 
-      // 如果文件不属于任何特定平台，则认为它是通用文件
-      const isPlatformSpecific =
-        isWindowsFile || isMacFile || isLinuxFile || isAndroidFile;
+      // 检查文件是否属于任何平台
+      const matchPlatform = (text, identifiers) => {
+        return identifiers.some((id) => text.includes(id.toLowerCase()));
+      };
 
-      // 如果文件匹配任何选中的平台，或者是通用文件，则显示
-      const matchesSelectedPlatform = selectedPlatforms.some((platform) => {
-        switch (platform) {
-          case 'windows':
-            return isWindowsFile;
-          case 'macos':
-            return isMacFile;
-          case 'linux':
-            return isLinuxFile;
-          case 'android':
-            return isAndroidFile;
-          default:
-            return false;
-        }
-      });
+      const matches = Object.entries(platformMatches).reduce(
+        (acc, [platform, identifiers]) => {
+          acc[platform] = matchPlatform(assetText, identifiers);
+          return acc;
+        },
+        {}
+      );
 
-      // 显示条件：文件匹配任何选中的平台，或者是通用文件
-      const shouldShow = matchesSelectedPlatform || !isPlatformSpecific;
+      // 检查文件是否属于任何平台
+      const isPlatformSpecific = Object.values(matches).some((match) => match);
+
+      // 检查文件是否匹配任何选中的平台
+      const matchesSelectedPlatform = selectedPlatforms.some(
+        (platform) => matches[platform]
+      );
+
+      // 检查文件是否属于未选中的平台
+      const matchesUnselectedPlatform = Object.entries(matches).some(
+        ([platform, match]) => match && !selectedPlatforms.includes(platform)
+      );
+
+      // 显示条件：
+      // 1. 如果是通用文件（不属于任何特定平台），则显示
+      // 2. 如果是特定平台文件，则必须匹配选中的平台且不能匹配未选中的平台
+      const shouldShow =
+        !isPlatformSpecific ||
+        (matchesSelectedPlatform && !matchesUnselectedPlatform);
 
       if (!shouldShow) {
         asset.classList.add('hidden-asset');
@@ -439,8 +455,14 @@
           selectedPlatforms.splice(index, 1);
         }
         option.classList.toggle('selected');
+
         GM_setValue('selectedPlatforms', selectedPlatforms);
-        filterAssets(assetsContainer);
+        // 筛选所有资源容器
+        const allAssetsContainers =
+          document.querySelectorAll('.Box--condensed');
+        allAssetsContainers.forEach((container) => {
+          filterAssets(container);
+        });
       };
       dropdown.appendChild(option);
     });
