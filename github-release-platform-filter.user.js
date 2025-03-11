@@ -16,7 +16,33 @@
 
 (function () {
   'use strict';
+  document.addEventListener('click', (e) => {
+    const summary = e.target.closest(
+      '[data-target="details-toggle.summaryTarget"]'
+    );
+    if (summary) {
+      // 当aria-label="Expand"，表示assets没有加载资源
+      // 点击后，assets加载资源
+      if (summary.getAttribute('aria-label') !== 'Expand') {
+        // 监听assets列表的变化
+        const assetsContainer = summary.nextElementSibling;
+        if (
+          assetsContainer &&
+          assetsContainer.getAttribute('data-view-component') === 'true'
+        ) {
+          const observer = new MutationObserver((mutations) => {
+            // 当assets列表加载完成后进行过滤
+            filterAssets(assetsContainer);
+          });
 
+          observer.observe(assetsContainer, {
+            childList: true,
+            subtree: true,
+          });
+        }
+      }
+    }
+  });
   // 样式定义
   const styles = `
         .markdown-body.my-3 {
@@ -47,7 +73,7 @@
             background: none;
         }
         .markdown-body.my-3:not(.expanded) .toggle-button {
-            background: linear-gradient(rgba(255, 255, 255, 0), rgba(255, 255, 255, 1));
+            background: linear-gradient(rgba(255, 255, 255, 0), rgb(202 202 202));
         }
         .markdown-body.my-3.expanded .toggle-button {
             border-top: 1px solid #e1e4e8;
@@ -150,8 +176,16 @@
             width: 16px;
             height: 16px;
         }
+        .hidden-asset {
+            display: none !important;
+        }
         .Box-row.d-flex.flex-column.flex-md-row.hidden-asset {
             display: none !important;
+            visibility: hidden !important;
+            height: 0 !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            opacity: 0 !important;
         }
     `;
 
@@ -163,7 +197,6 @@
   </svg>`,
   };
 
-  // 主要功能实现
   function initFeaturesPanels() {
     const panels = document.querySelectorAll('.markdown-body.my-3');
 
@@ -236,22 +269,26 @@
   }
 
   // 筛选资源
-  function filterAssets() {
-    const assetsContainer = document.querySelector('.Box--condensed');
-    if (!assetsContainer) return;
-
-    const assetsList = assetsContainer.querySelectorAll(
-      '.Box-row.d-flex.flex-column.flex-md-row'
-    );
-    if (selectedPlatforms.length === 0) {
-      // 如果没有选择任何平台，显示所有资源
-      assetsList.forEach((asset) => {
-        asset.classList.remove('hidden-asset');
-      });
+  function filterAssets(assetsContainer) {
+    if (!assetsContainer) {
       return;
     }
 
-    assetsList.forEach((asset) => {
+    const containerAssets = assetsContainer.querySelectorAll(
+      '.Box-row.d-flex.flex-column.flex-md-row'
+    );
+
+    // 重置所有资源的显示状态
+    containerAssets.forEach((asset) => {
+      asset.style.cssText = 'display: flex !important';
+      asset.classList.remove('hidden-asset');
+    });
+
+    if (selectedPlatforms.length === 0) {
+      return;
+    }
+
+    containerAssets.forEach((asset) => {
       const assetText = asset.textContent.toLowerCase();
       // 检查是否是特定平台的文件
       const isWindowsFile =
@@ -311,8 +348,16 @@
       // 显示条件：文件匹配任何选中的平台，或者是通用文件
       const shouldShow = matchesSelectedPlatform || !isPlatformSpecific;
 
-      asset.classList.toggle('hidden-asset', !shouldShow);
+      if (!shouldShow) {
+        asset.classList.add('hidden-asset');
+        asset.style.cssText = 'display: none !important';
+      }
     });
+
+    // 强制重新计算布局
+    assetsContainer.style.display = 'none';
+    void assetsContainer.offsetHeight;
+    assetsContainer.style.display = '';
   }
 
   // 初始化资源列表筛选
@@ -325,7 +370,7 @@
 
     // 检查是否已经存在筛选器
     if (document.querySelector('.platform-filter')) {
-      filterAssets();
+      filterAssets(assetsContainer);
       return;
     }
 
@@ -346,7 +391,7 @@
             (node) => node.nodeType === 1 && node.classList?.contains('Box-row')
           );
           if (hasAssets) {
-            filterAssets();
+            filterAssets(assetsContainer);
           }
         }
       }
@@ -395,7 +440,7 @@
         }
         option.classList.toggle('selected');
         GM_setValue('selectedPlatforms', selectedPlatforms);
-        filterAssets();
+        filterAssets(assetsContainer);
       };
       dropdown.appendChild(option);
     });
@@ -427,7 +472,7 @@
     }
 
     // 初始筛选
-    filterAssets();
+    filterAssets(assetsContainer);
   }
 
   // 添加样式到页面
@@ -454,9 +499,25 @@
     if (!document.querySelector('style[data-github-release-filter]')) {
       addStyles();
     }
+
+    // 找到所有的资源容器
+    const assetsContainers = document.querySelectorAll('.Box--condensed');
+
     // 先初始化发布说明功能
     initFeaturesPanels();
     startObserver();
+
+    // 对每个资源容器初始化筛选功能
+    assetsContainers.forEach((container) => {
+      // 检查容器内是否有资源
+      const hasAssets =
+        container.querySelectorAll('.Box-row.d-flex.flex-column.flex-md-row')
+          .length > 0;
+      if (hasAssets) {
+        filterAssets(container);
+      }
+    });
+
     // 然后初始化资源列表筛选功能
     initAssetsFilter();
   }
